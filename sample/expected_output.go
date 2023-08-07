@@ -22,7 +22,6 @@ func newAddMoneyRequest(bytes []byte) (*addMoneyRequest, error) {
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
 
-	var exists bool
 	valueForAmountKey, exists := stringKeyValues["amount"]
 	if !exists {
 		return nil, j(e("value not found for key 'amount'"))
@@ -37,8 +36,26 @@ func newAddMoneyRequest(bytes []byte) (*addMoneyRequest, error) {
 		return nil, j(e("parsing value for key 'amount' failed"), err)
 	}
 
+	valueForAccessTokenKey, exists := stringKeyValues["accessToken"]
+	if !exists {
+		return nil, j(e("value not found for key 'accessToken'"))
+	}
+	valueForAccessTokenKeyAsStringValue, err := valueForAccessTokenKey.AsString()
+	if err != nil {
+		return nil, j(e("parsing value for key 'accessToken failed"), err)
+	}
+	parsedStringForAccessTokenKey := valueForAccessTokenKeyAsStringValue.String
+
+	var accessTokenHaving = accessTokenHaving{
+		accessToken: parsedStringForAccessTokenKey,
+	}
+
+	var decodable = gojason.Decodable{}
+
 	var resultingStructAddMoneyRequest = addMoneyRequest{
-		amount: *parsedInt64ForAmountKey,
+		amount:            *parsedInt64ForAmountKey,
+		accessTokenHaving: accessTokenHaving,
+		string:            "df",
 	}
 
 	return &resultingStructAddMoneyRequest, nil

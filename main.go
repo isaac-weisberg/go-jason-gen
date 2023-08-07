@@ -19,9 +19,7 @@ func main() {
 		panic(err)
 	}
 
-	var typesOfInterest = []string{"addMoneyRequest"}
-
-	err = traverseThePackage(thePackage, typesOfInterest)
+	err = traverseThePackage(thePackage)
 	if err != nil {
 		panic(err)
 	}
@@ -35,7 +33,19 @@ func e(msg string) error {
 	return errors.New(msg)
 }
 
-func traverseThePackage(thePackage *packages.Package, typesToGenerate []string) error {
+type FirstClassField struct {
+	name      string
+	fieldType string
+}
+
+type StructDeclaration struct {
+	structName       string
+	firstClassFields []FirstClassField
+}
+
+func traverseThePackage(thePackage *packages.Package) error {
+	var structDeclarations = make([]StructDeclaration, 0)
+
 	for _, file := range thePackage.Syntax {
 		ast.Inspect(file, func(node ast.Node) bool {
 			declaration, ok := node.(*ast.GenDecl)
@@ -50,22 +60,54 @@ func traverseThePackage(thePackage *packages.Package, typesToGenerate []string) 
 			for _, spec := range declaration.Specs {
 				var typeSpec = spec.(*ast.TypeSpec) // succeeds, always
 
-				var typeName = typeSpec.Name.Name
-				if !contains[string](typesToGenerate, typeName) {
-					// not interested in this type
-
-					continue
-				}
-
 				var structType, ok = typeSpec.Type.(*ast.StructType)
 				if !ok {
-					panic("cant generate for structs")
+					panic("cant generate for anything but structs")
 				}
+
+				var firstClassFields = make([]FirstClassField, 0)
+				var metGojasonDecodable = false
 
 				for _, field := range structType.Fields.List {
-					fmt.Printf("%+v\n", field)
+					fmt.Printf("%+v, %T\n", field, field.Type)
+
+					fieldTypeAsIdent, ok := field.Type.(*ast.Ident)
+					if ok {
+						hasName := len(field.Names) > 0
+
+						if hasName {
+							name := field.Names[0].Name
+
+							var firstClassField = FirstClassField{
+								name:      name,
+								fieldType: fieldTypeAsIdent.Name,
+							}
+
+							firstClassFields = append(firstClassFields, firstClassField)
+						}
+
+						continue
+					}
+
+					fieldTypeAsSelector, ok := field.Type.(*ast.SelectorExpr)
+					if ok {
+						xAsIdent, ok := fieldTypeAsSelector.X.(*ast.Ident)
+						if ok {
+							if xAsIdent.Name == "gojason" && fieldTypeAsSelector.Sel.Name == "Decodable" {
+								metGojasonDecodable = true
+							}
+						}
+						fmt.Printf("%+v, %T\n", fieldTypeAsSelector.X, fieldTypeAsSelector.X)
+					}
+
 				}
 
+				if metGojasonDecodable {
+					var structDeclaration = StructDeclaration{
+						structName: typeSpec.Name.Name,
+					}
+					structDeclarations = append(structDeclarations, structDeclaration)
+				}
 			}
 
 			return false
