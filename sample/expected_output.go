@@ -53,6 +53,7 @@ func newAddMoneyRequest(bytes []byte) (*addMoneyRequest, error) {
 	var decodable = gojason.Decodable{}
 
 	var resultingStructAddMoneyRequest = addMoneyRequest{
+		Decodable:         decodable,
 		amount:            *parsedInt64ForAmountKey,
 		accessTokenHaving: accessTokenHaving,
 		string:            "df",
