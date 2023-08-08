@@ -4,21 +4,34 @@ import (
 	"errors"
 
 	gojason "github.com/isaac-weisberg/go-jason"
+	values "github.com/isaac-weisberg/go-jason/values"
 )
 
-func newAddMoneyRequest(bytes []byte) (*addMoneyRequest, error) {
+func makeAddMoneyRequestFromBytes(bytes []byte) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
 
-	rootValue, err := gojason.Parse(bytes)
+	rootValueAny, err := gojason.Parse(bytes)
 	if err != nil {
-		return nil, j(e("parsing json failed"), err)
+		return nil, j(e("parsing json into an object tree failed"), err)
 	}
 
-	rootObject, err := rootValue.AsObject()
+	rootObject, err := rootValueAny.AsObject()
 	if err != nil {
-		return nil, j(e("interpreting root value as an object failed"), err)
+		return nil, j(e("interpreting root json value as an object failed"), err)
 	}
+
+	parsedObject, err := parseAddMoneyRequestFromJsonObject(rootObject)
+	if err != nil {
+		return nil, j(e("parsing json into the resulting value failed"), err)
+	}
+
+	return parsedObject, nil
+}
+
+func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*addMoneyRequest, error) {
+	var j = errors.Join
+	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
 
