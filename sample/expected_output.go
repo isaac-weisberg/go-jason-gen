@@ -69,7 +69,6 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 		Decodable:         decodable,
 		amount:            *parsedInt64ForAmountKey,
 		accessTokenHaving: accessTokenHaving,
-		string:            "df",
 	}
 
 	return &resultingStructAddMoneyRequest, nil

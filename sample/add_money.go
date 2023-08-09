@@ -10,7 +10,7 @@ type addMoneyRequest struct {
 
 	amount int64
 
-	moneySpent moneySpentRequest
+	// moneySpent moneySpentRequest
 
 	string
 }

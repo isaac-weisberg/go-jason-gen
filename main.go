@@ -1,14 +1,12 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
 	"path"
 	"strings"
-	"unicode"
 
 	packages "golang.org/x/tools/go/packages"
 )
@@ -26,14 +24,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func w(err error, msg string) error {
-	return errors.Join(errors.New(msg), err)
-}
-
-func e(msg string) error {
-	return errors.New(msg)
 }
 
 type FirstClassField struct {
@@ -174,9 +164,10 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 	}
 
 	for _, declaration := range structDeclarations {
-		var firstCapitalizedStructName = firstCapitalized(declaration.structName)
+		var structName = declaration.structName
+		var structNameCapitalized = firstCapitalized(structName)
 
-		builder.WriteLineFI(0, "func make%sFromJson(bytes []byte) (*%s, error) {", firstCapitalizedStructName, declaration.structName)
+		builder.WriteLineFI(0, "func make%sFromJson(bytes []byte) (*%s, error) {", structNameCapitalized, structName)
 
 		builder.WriteLineIndent(1, "var j = errors.Join")
 		builder.WriteLineIndent(1, "var e = errors.New")
@@ -200,12 +191,14 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 		builder.WriteLine("}")
 		builder.WriteLine()
 
-		builder.WriteLineFI(0, "func parse%sFromJson(rootObject *values.JsonValueObject) (*%s, error) {", firstCapitalizedStructName, declaration.structName)
+		builder.WriteLineFI(0, "func parse%sFromJson(rootObject *values.JsonValueObject) (*%s, error) {", structNameCapitalized, structName)
 		builder.WriteLineIndent(1, "var j = errors.Join")
 		builder.WriteLineIndent(1, "var e = errors.New")
 		builder.WriteLine()
 		builder.WriteLineIndent(1, "var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()")
 		builder.WriteLine()
+
+		var keysAndValuesForThem = make(map[string]string, 0)
 
 		for _, firstClassField := range declaration.firstClassFields {
 			var fieldName = firstClassField.name
@@ -217,8 +210,38 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 			builder.WriteLineFI(1, "}")
 			builder.WriteLine()
 
+			var jsonObjectOfInterest = detectWhatJsonObjectShouldBeParsedForType(firstClassField.fieldType)
+
+			switch jsonObjectOfInterest {
+			case JsonObjectOfInterestInt64:
+				builder.WriteLineFI(1, `valueFor%sKeyAsNumberValue, err := valueFor%sKey.AsNumber()`, fieldNameCapitalized, fieldNameCapitalized)
+				builder.WriteLineFI(1, `if err != nil {`)
+				builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Number failed for key '%s'"), err)`, fieldName)
+				builder.WriteLineFI(1, `}`)
+
+				var resultingValueName = fmt.Sprintf(`parsedInt64For%sKey`, fieldNameCapitalized)
+
+				builder.WriteLineFI(1, `%s, err := valueFor%sKeyAsNumberValue.ParseInt64()`, resultingValueName, fieldNameCapitalized)
+				builder.WriteLineFI(1, `if err != nil {`)
+				builder.WriteLineFI(2, `return nil, j(e("parsing int64 from Number failed for key '%s'"), err)`, fieldName)
+				builder.WriteLineFI(1, `}`)
+
+				keysAndValuesForThem[fieldName] = resultingValueName
+			default:
+				panic("not supposed to happen")
+			}
+
+			builder.WriteLine()
 		}
 
+		builder.WriteLineFI(1, `var decodable = gojason.Decodable{}`)
+		builder.WriteLineFI(1, `var resultingStruct%s = %s{`, structNameCapitalized, declaration.structName)
+		builder.WriteLineFI(2, `Decodable: decodable,`)
+		for k, v := range keysAndValuesForThem {
+			builder.WriteLineFI(2, `%s: *%s,`, k, v)
+		}
+		builder.WriteLineFI(1, `}`)
+		builder.WriteLineFI(1, `return &resultingStruct%s, nil`, structNameCapitalized)
 		builder.WriteLine("}")
 	}
 
@@ -232,61 +255,22 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 	os.WriteFile(filePathToWrite, []byte(result), 0644)
 }
 
-type customBuilder struct {
-	builder strings.Builder
-}
+type JsonObjectOfInterest int64
 
-func (customBuilder *customBuilder) WriteString(values ...string) {
-	for _, val := range values {
-		customBuilder.builder.WriteString(val)
+const (
+	JsonObjectOfInterestInvalido JsonObjectOfInterest = iota
+	JsonObjectOfInterestInt64
+	JsonObjectOfInterestString
+	JsonObjectOfInterestAnotherType
+)
+
+func detectWhatJsonObjectShouldBeParsedForType(t string) JsonObjectOfInterest {
+	switch t {
+	case "int64":
+		return JsonObjectOfInterestInt64
+	case "string":
+		return JsonObjectOfInterestString
+	default:
+		return JsonObjectOfInterestAnotherType
 	}
-}
-
-func (customBuilder *customBuilder) WriteLine(values ...string) {
-	for _, val := range values {
-		customBuilder.builder.WriteString(val)
-	}
-	customBuilder.builder.WriteByte('\n')
-}
-
-func (customBuilder *customBuilder) WriteLineFI(indentation int, format string, args ...any) {
-	for i := 0; i < indentation; i++ {
-		customBuilder.builder.WriteRune('\t')
-	}
-	customBuilder.builder.WriteString(fmt.Sprintf(format, args...))
-	customBuilder.builder.WriteRune('\n')
-}
-
-func (customBuilder *customBuilder) WriteLineIndent(indentation int, values ...string) {
-	for i := 0; i < indentation; i++ {
-		customBuilder.builder.WriteRune('\t')
-	}
-	for _, val := range values {
-		customBuilder.builder.WriteString(val)
-	}
-	customBuilder.builder.WriteByte('\n')
-}
-
-func (customBuilder *customBuilder) String() string {
-	return customBuilder.builder.String()
-}
-
-func firstCapitalized(value string) string {
-	var copy = value
-	if len(value) == 0 {
-		return value
-	}
-
-	var firstChar = copy[:1]
-	var otherChars = copy[1:]
-
-	var builder strings.Builder
-
-	for _, r := range firstChar {
-		builder.WriteRune(unicode.ToUpper(r))
-	}
-
-	builder.WriteString(otherChars)
-
-	return builder.String()
 }
