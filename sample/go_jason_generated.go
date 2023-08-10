@@ -41,7 +41,6 @@ func parseAddMoneyRequestFromJson(rootObject *values.JsonValueObject) (*addMoney
 	if !exists {
 		return nil, j(e("value not found for key 'amount'"))
 	}
-
 	valueForAmountKeyAsNumberValue, err := valueForAmountKey.AsNumber()
 	if err != nil {
 		return nil, j(e("interpreting JsonAny as Number failed for key 'amount'"), err)
@@ -51,10 +50,21 @@ func parseAddMoneyRequestFromJson(rootObject *values.JsonValueObject) (*addMoney
 		return nil, j(e("parsing int64 from Number failed for key 'amount'"), err)
 	}
 
+	valueForMessageKey, exists := stringKeyValues["message"]
+	if !exists {
+		return nil, j(e("value not found for key 'message'"))
+	}
+	valueForMessageKeyAsStringValue, err := valueForMessageKey.AsString()
+	if err != nil {
+		return nil, j(e("interpreting JsonAny as String failed for key 'message'"), err)
+	}
+	parsedStringForMessageKey := valueForMessageKeyAsStringValue.String
+
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
 		amount: *parsedInt64ForAmountKey,
+		message: parsedStringForMessageKey,
 	}
 	return &resultingStructAddMoneyRequest, nil
 }

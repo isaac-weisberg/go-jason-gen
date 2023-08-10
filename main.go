@@ -198,7 +198,12 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 		builder.WriteLineIndent(1, "var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()")
 		builder.WriteLine()
 
-		var keysAndValuesForThem = make(map[string]string, 0)
+		type InitializationValue struct {
+			valueName          string
+			needsDereferencing bool
+		}
+
+		var keysAndValuesForThem = make(map[string]InitializationValue, 0)
 
 		for _, firstClassField := range declaration.firstClassFields {
 			var fieldName = firstClassField.name
@@ -208,7 +213,6 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 			builder.WriteLineFI(1, `if !exists {`)
 			builder.WriteLineFI(2, `return nil, j(e("value not found for key '%s'"))`, fieldName)
 			builder.WriteLineFI(1, "}")
-			builder.WriteLine()
 
 			var jsonObjectOfInterest = detectWhatJsonObjectShouldBeParsedForType(firstClassField.fieldType)
 
@@ -226,7 +230,24 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 				builder.WriteLineFI(2, `return nil, j(e("parsing int64 from Number failed for key '%s'"), err)`, fieldName)
 				builder.WriteLineFI(1, `}`)
 
-				keysAndValuesForThem[fieldName] = resultingValueName
+				keysAndValuesForThem[fieldName] = InitializationValue{
+					valueName:          resultingValueName,
+					needsDereferencing: true,
+				}
+			case JsonObjectOfInterestString:
+				builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
+				builder.WriteLineFI(1, `if err != nil {`)
+				builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as String failed for key '%s'"), err)`, fieldName)
+				builder.WriteLineFI(1, `}`)
+
+				var resultingValueName = fmt.Sprintf(`parsedStringFor%sKey`, fieldNameCapitalized)
+
+				builder.WriteLineFI(1, `%s := valueFor%sKeyAsStringValue.String`, resultingValueName, fieldNameCapitalized)
+
+				keysAndValuesForThem[fieldName] = InitializationValue{
+					valueName:          resultingValueName,
+					needsDereferencing: false,
+				}
 			default:
 				panic("not supposed to happen")
 			}
@@ -237,8 +258,15 @@ func generateForStructDeclarations(packageName string, packageLocation string, s
 		builder.WriteLineFI(1, `var decodable = gojason.Decodable{}`)
 		builder.WriteLineFI(1, `var resultingStruct%s = %s{`, structNameCapitalized, declaration.structName)
 		builder.WriteLineFI(2, `Decodable: decodable,`)
-		for k, v := range keysAndValuesForThem {
-			builder.WriteLineFI(2, `%s: *%s,`, k, v)
+		for k, value := range keysAndValuesForThem {
+			var formatStringRepresentingUsageOfValue string
+			if value.needsDereferencing {
+				formatStringRepresentingUsageOfValue = "*%s"
+			} else {
+				formatStringRepresentingUsageOfValue = "%s"
+			}
+			var valueUsage = fmt.Sprintf(formatStringRepresentingUsageOfValue, value.valueName)
+			builder.WriteLineFI(2, `%s: %s,`, k, valueUsage)
 		}
 		builder.WriteLineFI(1, `}`)
 		builder.WriteLineFI(1, `return &resultingStruct%s, nil`, structNameCapitalized)

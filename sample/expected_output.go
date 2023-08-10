@@ -59,6 +59,18 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	}
 	parsedStringForAccessTokenKey := valueForAccessTokenKeyAsStringValue.String
 
+	valueForMessageKey, exists := stringKeyValues["message"]
+	if !exists {
+		return nil, j(e("value not found for key 'message'"))
+	}
+
+	valueForMessageKeyAsStringValue, err := valueForMessageKey.AsString()
+	if err != nil {
+		return nil, j(e("parsing value for key 'message' failed"), err)
+	}
+
+	messageResultingValue := valueForMessageKeyAsStringValue.String
+
 	var accessTokenHaving = accessTokenHaving{
 		accessToken: parsedStringForAccessTokenKey,
 	}
@@ -69,6 +81,7 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 		Decodable:         decodable,
 		amount:            *parsedInt64ForAmountKey,
 		accessTokenHaving: accessTokenHaving,
+		message:           messageResultingValue,
 	}
 
 	return &resultingStructAddMoneyRequest, nil
