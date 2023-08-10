@@ -199,6 +199,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineIndent(1, `"errors"`)
 		builder.WriteLine()
 		builder.WriteLineIndent(1, `gojason "github.com/isaac-weisberg/go-jason"`)
+		builder.WriteLineIndent(1, `parser "github.com/isaac-weisberg/go-jason/parser"`)
 		builder.WriteLineIndent(1, `values "github.com/isaac-weisberg/go-jason/values"`)
 		builder.WriteLine(")")
 		builder.WriteLine()
@@ -213,7 +214,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineIndent(1, "var j = errors.Join")
 		builder.WriteLineIndent(1, "var e = errors.New")
 		builder.WriteLine()
-		builder.WriteLineIndent(1, "rootValueAny, err := gojason.Parse(bytes)")
+		builder.WriteLineIndent(1, "rootValueAny, err := parser.Parse(bytes)")
 		builder.WriteLineIndent(1, "if err != nil {")
 		builder.WriteLineIndent(2, `return nil, j(e("parsing json into an object tree failed"), err)`)
 		builder.WriteLineIndent(1, "}")
@@ -266,6 +267,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineFI(1, `}`)
 		builder.WriteLineFI(1, `return &resultingStruct%s, nil`, structNameCapitalized)
 		builder.WriteLine("}")
+		builder.WriteLine()
 	}
 
 	var result = builder.String()

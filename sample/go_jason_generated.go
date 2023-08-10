@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	gojason "github.com/isaac-weisberg/go-jason"
+	parser "github.com/isaac-weisberg/go-jason/parser"
 	values "github.com/isaac-weisberg/go-jason/values"
 )
 
@@ -13,7 +14,7 @@ func makeAccessTokenHavingFromJson(bytes []byte) (*accessTokenHaving, error) {
 	var j = errors.Join
 	var e = errors.New
 
-	rootValueAny, err := gojason.Parse(bytes)
+	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
 		return nil, j(e("parsing json into an object tree failed"), err)
 	}
@@ -54,11 +55,12 @@ func parseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueObject) (*
 	}
 	return &resultingStructAccessTokenHaving, nil
 }
+
 func makeAddMoneyRequestFromJson(bytes []byte) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
 
-	rootValueAny, err := gojason.Parse(bytes)
+	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
 		return nil, j(e("parsing json into an object tree failed"), err)
 	}
@@ -133,11 +135,12 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	}
 	return &resultingStructAddMoneyRequest, nil
 }
+
 func makeMoneySpentRequestFromJson(bytes []byte) (*moneySpentRequest, error) {
 	var j = errors.Join
 	var e = errors.New
 
-	rootValueAny, err := gojason.Parse(bytes)
+	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
 		return nil, j(e("parsing json into an object tree failed"), err)
 	}
@@ -181,3 +184,4 @@ func parseMoneySpentRequestFromJsonObject(rootObject *values.JsonValueObject) (*
 	}
 	return &resultingStructMoneySpentRequest, nil
 }
+

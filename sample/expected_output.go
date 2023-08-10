@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	gojason "github.com/isaac-weisberg/go-jason"
+	parser "github.com/isaac-weisberg/go-jason/parser"
 	values "github.com/isaac-weisberg/go-jason/values"
 )
 
@@ -11,7 +12,7 @@ func ExpectedMakeAddMoneyRequestFromBytes(bytes []byte) (*addMoneyRequest, error
 	var j = errors.Join
 	var e = errors.New
 
-	rootValueAny, err := gojason.Parse(bytes)
+	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
 		return nil, j(e("parsing json into an object tree failed"), err)
 	}
