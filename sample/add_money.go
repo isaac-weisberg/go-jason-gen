@@ -12,6 +12,4 @@ type addMoneyRequest struct {
 	message string
 
 	// moneySpent moneySpentRequest
-
-	string
 }

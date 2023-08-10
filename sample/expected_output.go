@@ -7,7 +7,7 @@ import (
 	values "github.com/isaac-weisberg/go-jason/values"
 )
 
-func makeAddMoneyRequestFromBytes(bytes []byte) (*addMoneyRequest, error) {
+func ExpectedMakeAddMoneyRequestFromBytes(bytes []byte) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
 
@@ -29,7 +29,30 @@ func makeAddMoneyRequestFromBytes(bytes []byte) (*addMoneyRequest, error) {
 	return parsedObject, nil
 }
 
-func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*addMoneyRequest, error) {
+func ExpectedParseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueObject) (*accessTokenHaving, error) {
+	var j = errors.Join
+	var e = errors.New
+
+	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
+
+	valueForAccessTokenKey, exists := stringKeyValues["accessToken"]
+	if !exists {
+		return nil, j(e("value not found for key 'accessToken'"))
+	}
+	valueForAccessTokenKeyAsStringValue, err := valueForAccessTokenKey.AsString()
+	if err != nil {
+		return nil, j(e("parsing value for key 'accessToken failed"), err)
+	}
+	parsedStringForAccessTokenKey := valueForAccessTokenKeyAsStringValue.String
+
+	var accessTokenHaving = accessTokenHaving{
+		accessToken: parsedStringForAccessTokenKey,
+	}
+
+	return &accessTokenHaving, nil
+}
+
+func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
 
@@ -43,21 +66,10 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	if err != nil {
 		return nil, j(e("parsing value for key 'amount' failed"), err)
 	}
-
 	parsedInt64ForAmountKey, err := valueForAmountKeyAsNumberValue.ParseInt64()
 	if err != nil {
 		return nil, j(e("parsing value for key 'amount' failed"), err)
 	}
-
-	valueForAccessTokenKey, exists := stringKeyValues["accessToken"]
-	if !exists {
-		return nil, j(e("value not found for key 'accessToken'"))
-	}
-	valueForAccessTokenKeyAsStringValue, err := valueForAccessTokenKey.AsString()
-	if err != nil {
-		return nil, j(e("parsing value for key 'accessToken failed"), err)
-	}
-	parsedStringForAccessTokenKey := valueForAccessTokenKeyAsStringValue.String
 
 	valueForMessageKey, exists := stringKeyValues["message"]
 	if !exists {
@@ -71,8 +83,9 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 
 	messageResultingValue := valueForMessageKeyAsStringValue.String
 
-	var accessTokenHaving = accessTokenHaving{
-		accessToken: parsedStringForAccessTokenKey,
+	accessTokenHaving, err := ExpectedParseAccessTokenHavingFromJsonObject(rootObject)
+	if err != nil {
+		return nil, j(e("parsing embedded struct of type accessTokenHaving failed"))
 	}
 
 	var decodable = gojason.Decodable{}
@@ -80,7 +93,7 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable:         decodable,
 		amount:            *parsedInt64ForAmountKey,
-		accessTokenHaving: accessTokenHaving,
+		accessTokenHaving: *accessTokenHaving,
 		message:           messageResultingValue,
 	}
 
