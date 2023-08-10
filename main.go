@@ -301,13 +301,15 @@ func detectWhatJsonObjectShouldBeParsedForType(t string) JsonObjectOfInterest {
 func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, firstClassField FirstClassField) {
 	var fieldName = firstClassField.name
 	var fieldNameCapitalized = firstCapitalized(fieldName)
+	var fieldType = firstClassField.fieldType
+	var fieldTypeCapitalized = firstCapitalized(fieldType)
 
 	builder.WriteLineFI(1, `valueFor%sKey, exists := stringKeyValues["%s"]`, fieldNameCapitalized, fieldName)
 	builder.WriteLineFI(1, `if !exists {`)
 	builder.WriteLineFI(2, `return nil, j(e("value not found for key '%s'"))`, fieldName)
 	builder.WriteLineFI(1, "}")
 
-	var jsonObjectOfInterest = detectWhatJsonObjectShouldBeParsedForType(firstClassField.fieldType)
+	var jsonObjectOfInterest = detectWhatJsonObjectShouldBeParsedForType(fieldType)
 
 	switch jsonObjectOfInterest {
 	case JsonObjectOfInterestInt64:
@@ -342,7 +344,20 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			needsDereferencing: false,
 		}
 	case JsonObjectOfInterestAnotherType:
-		panic("no first class fields are supported other than strings and int64s")
+		builder.WriteLineFI(1, `valueFor%sKeyAsObjectValue, err := valueFor%sKey.AsObject()`, fieldNameCapitalized, fieldNameCapitalized)
+		builder.WriteLineFI(1, `if err != nil {`)
+		builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Object failed for key '%s'"), err)`, fieldName)
+		builder.WriteLineFI(1, `}`)
+		var resultingValueName = fmt.Sprintf("parsedValueFor%sKey", fieldNameCapitalized)
+		builder.WriteLineFI(1, `%s, err := parse%sFromJsonObject(valueFor%sKeyAsObjectValue)`, resultingValueName, fieldTypeCapitalized, fieldNameCapitalized)
+		builder.WriteLineFI(1, `if err != nil {`)
+		builder.WriteLineFI(2, `return nil, j(e("parsing '%s' from 'Object' failed for key '%s'"))`, fieldType, fieldName)
+		builder.WriteLineFI(1, `}`)
+
+		keysAndValues[fieldName] = InitializationValue{
+			valueName:          resultingValueName,
+			needsDereferencing: true,
+		}
 	default:
 		panic("not supposed to happen")
 	}

@@ -11,5 +11,5 @@ type addMoneyRequest struct {
 	amount  int64
 	message string
 
-	// moneySpent moneySpentRequest
+	moneySpent moneySpentRequest
 }

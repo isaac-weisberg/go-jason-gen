@@ -110,12 +110,74 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	}
 	parsedStringForMessageKey := valueForMessageKeyAsStringValue.String
 
+	valueForMoneySpentKey, exists := stringKeyValues["moneySpent"]
+	if !exists {
+		return nil, j(e("value not found for key 'moneySpent'"))
+	}
+	valueForMoneySpentKeyAsObjectValue, err := valueForMoneySpentKey.AsObject()
+	if err != nil {
+		return nil, j(e("interpreting JsonAny as Object failed for key 'moneySpent'"), err)
+	}
+	parsedValueForMoneySpentKey, err := parseMoneySpentRequestFromJsonObject(valueForMoneySpentKeyAsObjectValue)
+	if err != nil {
+		return nil, j(e("parsing 'moneySpentRequest' from 'Object' failed for key 'moneySpent'"))
+	}
+
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
+		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 		amount: *parsedInt64ForAmountKey,
 		message: parsedStringForMessageKey,
-		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
+		moneySpent: *parsedValueForMoneySpentKey,
 	}
 	return &resultingStructAddMoneyRequest, nil
+}
+func makeMoneySpentRequestFromJson(bytes []byte) (*moneySpentRequest, error) {
+	var j = errors.Join
+	var e = errors.New
+
+	rootValueAny, err := gojason.Parse(bytes)
+	if err != nil {
+		return nil, j(e("parsing json into an object tree failed"), err)
+	}
+
+	rootObject, err := rootValueAny.AsObject()
+	if err != nil {
+		return nil, j(e("interpreting root json value as an object failed"), err)
+	}
+
+	parsedObject, err := parseMoneySpentRequestFromJsonObject(rootObject)
+	if err != nil {
+		return nil, j(e("parsing json into the resulting value failed"), err)
+	}
+
+	return parsedObject, nil
+}
+
+func parseMoneySpentRequestFromJsonObject(rootObject *values.JsonValueObject) (*moneySpentRequest, error) {
+	var j = errors.Join
+	var e = errors.New
+
+	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
+
+	valueForSpendAmountKey, exists := stringKeyValues["spendAmount"]
+	if !exists {
+		return nil, j(e("value not found for key 'spendAmount'"))
+	}
+	valueForSpendAmountKeyAsNumberValue, err := valueForSpendAmountKey.AsNumber()
+	if err != nil {
+		return nil, j(e("interpreting JsonAny as Number failed for key 'spendAmount'"), err)
+	}
+	parsedInt64ForSpendAmountKey, err := valueForSpendAmountKeyAsNumberValue.ParseInt64()
+	if err != nil {
+		return nil, j(e("parsing int64 from Number failed for key 'spendAmount'"), err)
+	}
+
+	var decodable = gojason.Decodable{}
+	var resultingStructMoneySpentRequest = moneySpentRequest{
+		Decodable: decodable,
+		spendAmount: *parsedInt64ForSpendAmountKey,
+	}
+	return &resultingStructMoneySpentRequest, nil
 }

@@ -88,6 +88,19 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 		return nil, j(e("parsing embedded struct of type accessTokenHaving failed"))
 	}
 
+	// valueForMoneySpentKey, exists := stringKeyValues["moneySpent"]
+	// if !exists {
+	// 	return nil, j(e("value not found for key 'moneySpent'"))
+	// }
+	// valueForMoneySpentKeyAsObjectValue, err := valueForMoneySpentKey.AsObject()
+	// if err != nil {
+	// 	return nil, j(e("interpreting JsonAny as Object failed for key moneySpent"), err)
+	// }
+	// parsedValueForMoneySpentKey, err := parseMoneySpentFromJsonObject(valueForMoneySpentKeyAsObjectValue)
+	// if err != nil {
+	// 	return nil, j(e("parsing 'moneySpentRequest' from 'Object' failed for key 'moneySpent'"))
+	// }
+
 	var decodable = gojason.Decodable{}
 
 	var resultingStructAddMoneyRequest = addMoneyRequest{
@@ -95,6 +108,7 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 		amount:            *parsedInt64ForAmountKey,
 		accessTokenHaving: *accessTokenHaving,
 		message:           messageResultingValue,
+		// moneySpent:        *moneySpent,
 	}
 
 	return &resultingStructAddMoneyRequest, nil
