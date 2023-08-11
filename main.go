@@ -247,6 +247,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineIndent(1, "var e = errors.New")
 		builder.WriteLine()
 		builder.WriteLineIndent(1, "var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()")
+		builder.WriteLineIndent(1, "_ = stringKeyValues")
 		builder.WriteLine()
 
 		var keysAndValuesForThem = make(map[string]InitializationValue, 0)
