@@ -1,3 +1,5 @@
+github.com/isaac-weisberg/go-jason v0.2.0 h1:DbJC8A+z1YIcuz+T41ubJcAP6fY2X1xXM1b+6Txw0r8=
+github.com/isaac-weisberg/go-jason v0.2.0/go.mod h1:DNi0GeY9LwV5eG85WMScXA6CRZgTzWWAcplnZWiE6zk=
 golang.org/x/mod v0.12.0 h1:rmsUpXtvNzj340zd98LZ4KntptpfRHwpFOHG188oHXc=
 golang.org/x/mod v0.12.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
