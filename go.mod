@@ -1,4 +1,4 @@
-module caroline-weisberg.fun/go-jason-gen
+module github.com/isaac-weisberg/go-jason-gen
 
 go 1.20
 
