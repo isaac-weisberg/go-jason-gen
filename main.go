@@ -12,17 +12,26 @@ import (
 )
 
 func main() {
-	var packageLocation = "./sample"
-
-	var thePackage, err = loadPackage(packageLocation)
-
-	if err != nil {
-		panic(err)
+	var args = os.Args
+	if len(args) == 1 {
+		panic("Please, provide package paths")
 	}
 
-	err = traverseThePackage(packageLocation, thePackage)
-	if err != nil {
-		panic(err)
+	var remainingArgs = args[1:]
+
+	for _, arg := range remainingArgs {
+		var packageLocation = arg
+
+		var thePackage, err = loadPackage(packageLocation)
+
+		if err != nil {
+			panic(err)
+		}
+
+		err = traverseThePackage(packageLocation, thePackage)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
