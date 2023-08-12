@@ -4,6 +4,7 @@ package sample
 
 import (
 	"errors"
+	"fmt"
 
 	gojason "github.com/isaac-weisberg/go-jason"
 	parser "github.com/isaac-weisberg/go-jason/parser"
@@ -114,6 +115,27 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	}
 	parsedStringForMessageKey := valueForMessageKeyAsStringValue.String
 
+	valueForOtherStuffKey, exists := stringKeyValues["otherStuff"]
+	if !exists {
+		return nil, j(e("value not found for key 'otherStuff'"))
+	}
+	valueForOtherStuffKeyAsArrayValue, err := valueForOtherStuffKey.AsArray()
+	if err != nil {
+		return nil, j(e("interpreting JsonAny as Array failed for key 'otherStuff'"))
+	}
+	resultingArrayForOtherStuffKey := make([]addMoneyRequest, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
+	for index, element := range valueForOtherStuffKeyAsArrayValue.Values {
+		elementAsObject, err := element.AsObject()
+		if err != nil {
+			return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%v' of array for key 'otherStuff' as object, but failed", index)), err)
+		}
+		parsedValue, err := parseAddMoneyRequestFromJsonObject(elementAsObject)
+		if err != nil {
+			return nil, j(e(fmt.Sprintf("failed to parse element at index '%v' of array for key 'otherStuff'", index)), err)
+		}
+		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, *parsedValue)
+	}
+
 	valueForMoneySpentKey, exists := stringKeyValues["moneySpent"]
 	if !exists {
 		return nil, j(e("value not found for key 'moneySpent'"))
@@ -130,10 +152,11 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
-		moneySpent: *parsedValueForMoneySpentKey,
 		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 		amount: *parsedInt64ForAmountKey,
 		message: parsedStringForMessageKey,
+		otherStuff: resultingArrayForOtherStuffKey,
+		moneySpent: *parsedValueForMoneySpentKey,
 	}
 	return &resultingStructAddMoneyRequest, nil
 }

@@ -142,7 +142,6 @@ func traverseThePackage(packageLocation string, thePackage *packages.Package) er
 				var metGojasonDecodable = false
 
 				for _, field := range structType.Fields.List {
-					fmt.Printf("ASDF %+v %T\n", field, field.Type)
 					fieldTypeAsIdent, ok := field.Type.(*ast.Ident)
 					if ok {
 						hasName := len(field.Names) > 0
@@ -161,6 +160,24 @@ func traverseThePackage(packageLocation string, thePackage *packages.Package) er
 						}
 
 						continue
+					}
+
+					fieldTypeAsArray, ok := field.Type.(*ast.ArrayType)
+					if ok {
+						elementTypeIdent, ok := fieldTypeAsArray.Elt.(*ast.Ident)
+						if ok {
+							if len(field.Names) == 0 {
+								panic("when the field is array, the type MUST be present. a go source doesn't compile like this.")
+							}
+
+							var fieldName = field.Names[0].Name
+							var typeName = elementTypeIdent.Name
+							var typeKind = FirstClassFieldTypeKindArray
+							var parsingStrategy = detectFirstClassFieldParsingStrategy(elementTypeIdent.Name)
+
+							var firstClassField = newFirstClassStructField(fieldName, typeName, typeKind, parsingStrategy)
+							fields = append(fields, firstClassField)
+						}
 					}
 
 					fieldTypeAsSelector, ok := field.Type.(*ast.SelectorExpr)
@@ -244,11 +261,12 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 
 	if len(structDeclarations) > 0 {
 		builder.WriteLine("import (")
-		builder.WriteLineIndent(1, `"errors"`)
+		builder.WriteLineFI(1, `"errors"`)
+		builder.WriteLineFI(1, `"fmt"`)
 		builder.WriteLine()
-		builder.WriteLineIndent(1, `gojason "github.com/isaac-weisberg/go-jason"`)
-		builder.WriteLineIndent(1, `parser "github.com/isaac-weisberg/go-jason/parser"`)
-		builder.WriteLineIndent(1, `values "github.com/isaac-weisberg/go-jason/values"`)
+		builder.WriteLineFI(1, `gojason "github.com/isaac-weisberg/go-jason"`)
+		builder.WriteLineFI(1, `parser "github.com/isaac-weisberg/go-jason/parser"`)
+		builder.WriteLineFI(1, `values "github.com/isaac-weisberg/go-jason/values"`)
 		builder.WriteLine(")")
 		builder.WriteLine()
 	}
@@ -328,6 +346,8 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 }
 
 func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, firstClassField FirstClassField) {
+	fmt.Printf("ASDF %+v\n", firstClassField)
+
 	var fieldName = firstClassField.fieldName
 	var fieldNameCapitalized = firstCapitalized(fieldName)
 	var fieldType = firstClassField.typeName
@@ -391,6 +411,41 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			panic("not supposed to happen")
 		}
 	case FirstClassFieldTypeKindArray:
+		builder.WriteLineFI(1, `valueFor%sKeyAsArrayValue, err := valueFor%sKey.AsArray()`, fieldNameCapitalized, fieldNameCapitalized)
+		builder.WriteLineFI(1, `if err != nil {`)
+		builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Array failed for key '%s'"))`, fieldName)
+		builder.WriteLineFI(1, `}`)
+
+		var resultingValueName = fmt.Sprintf("resultingArrayFor%sKey", fieldNameCapitalized)
+		builder.WriteLineFI(1, `%s := make([]%s, 0, len(valueFor%sKeyAsArrayValue.Values))`, resultingValueName, fieldType, fieldNameCapitalized)
+		builder.WriteLineFI(1, `for index, element := range valueFor%sKeyAsArrayValue.Values {`, fieldNameCapitalized)
+
+		switch firstClassField.typeParsingStrat {
+		case FirstClassFieldParsingStrategyInt64:
+
+		case FirstClassFieldParsingStrategyString:
+
+		case FirstClassFieldParsingStrategyArbitraryStruct:
+			builder.WriteLineFI(2, `elementAsObject, err := element.AsObject()`)
+			builder.WriteLineFI(2, `if err != nil {`)
+			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%%v' of array for key '%s' as object, but failed", index)), err)`, fieldName)
+			builder.WriteLineFI(2, `}`)
+
+			builder.WriteLineFI(2, `parsedValue, err := parse%sFromJsonObject(elementAsObject)`, fieldTypeCapitalized)
+			builder.WriteLineFI(2, `if err != nil {`)
+			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("failed to parse element at index '%%v' of array for key '%s'", index)), err)`, fieldName)
+			builder.WriteLineFI(2, `}`)
+			builder.WriteLineFI(2, `resultingArrayFor%sKey = append(resultingArrayFor%sKey, *parsedValue)`, fieldNameCapitalized, fieldNameCapitalized)
+		default:
+			panic("oops")
+		}
+
+		builder.WriteLineFI(1, `}`)
+
+		keysAndValues[fieldName] = InitializationValue{
+			valueName:          resultingValueName,
+			needsDereferencing: false,
+		}
 	default:
 		panic("no")
 	}
