@@ -37,6 +37,7 @@ func parseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueObject) (*
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
+	_ = stringKeyValues
 
 	valueForAccessTokenKey, exists := stringKeyValues["accessToken"]
 	if !exists {
@@ -83,6 +84,7 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
+	_ = stringKeyValues
 
 	valueForEmbeddedAccessTokenHaving, err := parseAccessTokenHavingFromJsonObject(rootObject)
 	if err != nil {
@@ -128,10 +130,10 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
+		moneySpent: *parsedValueForMoneySpentKey,
 		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 		amount: *parsedInt64ForAmountKey,
 		message: parsedStringForMessageKey,
-		moneySpent: *parsedValueForMoneySpentKey,
 	}
 	return &resultingStructAddMoneyRequest, nil
 }
@@ -163,6 +165,7 @@ func parseMoneySpentRequestFromJsonObject(rootObject *values.JsonValueObject) (*
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
+	_ = stringKeyValues
 
 	valueForSpendAmountKey, exists := stringKeyValues["spendAmount"]
 	if !exists {

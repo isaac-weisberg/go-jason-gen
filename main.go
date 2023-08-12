@@ -42,9 +42,37 @@ const (
 	FieldTypeEmbeddedStruct
 )
 
+type FirstClassFieldParsingStrategy int64
+
+const (
+	FirstClassFieldParsingStrategyInt64 FirstClassFieldParsingStrategy = iota
+	FirstClassFieldParsingStrategyString
+	FirstClassFieldParsingStrategyArbitraryStruct
+)
+
+func detectFirstClassFieldParsingStrategy(t string) FirstClassFieldParsingStrategy {
+	switch t {
+	case "int64":
+		return FirstClassFieldParsingStrategyInt64
+	case "string":
+		return FirstClassFieldParsingStrategyString
+	default:
+		return FirstClassFieldParsingStrategyArbitraryStruct
+	}
+}
+
+type FirstClassFieldTypeKind int64
+
+const (
+	FirstClassFieldTypeKindScalar FirstClassFieldTypeKind = iota
+	FirstClassFieldTypeKindArray
+)
+
 type FirstClassField struct {
-	name      string
-	fieldType string
+	fieldName        string
+	typeName         string
+	typeKind         FirstClassFieldTypeKind
+	typeParsingStrat FirstClassFieldParsingStrategy
 }
 
 type EmbeddedStructField struct {
@@ -57,12 +85,19 @@ type StructField struct {
 	embeddedStructField EmbeddedStructField
 }
 
-func newFirstClassStructField(name string, fieldType string) StructField {
+func newFirstClassStructField(
+	fieldName string,
+	typeName string,
+	typeKind FirstClassFieldTypeKind,
+	typeParsingStrat FirstClassFieldParsingStrategy,
+) StructField {
 	return StructField{
 		fieldType: FieldTypeFirstClass,
 		firstClassField: FirstClassField{
-			name:      name,
-			fieldType: fieldType,
+			fieldName:        fieldName,
+			typeName:         typeName,
+			typeKind:         typeKind,
+			typeParsingStrat: typeParsingStrat,
 		},
 	}
 }
@@ -107,6 +142,7 @@ func traverseThePackage(packageLocation string, thePackage *packages.Package) er
 				var metGojasonDecodable = false
 
 				for _, field := range structType.Fields.List {
+					fmt.Printf("ASDF %+v %T\n", field, field.Type)
 					fieldTypeAsIdent, ok := field.Type.(*ast.Ident)
 					if ok {
 						hasName := len(field.Names) > 0
@@ -114,7 +150,10 @@ func traverseThePackage(packageLocation string, thePackage *packages.Package) er
 						if hasName {
 							name := field.Names[0].Name
 
-							var firstClassField = newFirstClassStructField(name, fieldTypeAsIdent.Name)
+							var typeKind = FirstClassFieldTypeKindScalar
+							var parsingStrategy = detectFirstClassFieldParsingStrategy(fieldTypeAsIdent.Name)
+
+							var firstClassField = newFirstClassStructField(name, fieldTypeAsIdent.Name, typeKind, parsingStrategy)
 							fields = append(fields, firstClassField)
 						} else {
 							var embeddedStructField = newEmbeddedStructField(fieldTypeAsIdent.Name)
@@ -282,38 +321,16 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 
 	var result = builder.String()
 
-	fmt.Printf("\n%s\n", result)
-
 	fileNameToWrite := "go_jason_generated.go"
 	filePathToWrite := path.Join(packageLocation, fileNameToWrite)
 
 	os.WriteFile(filePathToWrite, []byte(result), 0644)
 }
 
-type JsonObjectOfInterest int64
-
-const (
-	JsonObjectOfInterestInvalido JsonObjectOfInterest = iota
-	JsonObjectOfInterestInt64
-	JsonObjectOfInterestString
-	JsonObjectOfInterestAnotherType
-)
-
-func detectWhatJsonObjectShouldBeParsedForType(t string) JsonObjectOfInterest {
-	switch t {
-	case "int64":
-		return JsonObjectOfInterestInt64
-	case "string":
-		return JsonObjectOfInterestString
-	default:
-		return JsonObjectOfInterestAnotherType
-	}
-}
-
 func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, firstClassField FirstClassField) {
-	var fieldName = firstClassField.name
+	var fieldName = firstClassField.fieldName
 	var fieldNameCapitalized = firstCapitalized(fieldName)
-	var fieldType = firstClassField.fieldType
+	var fieldType = firstClassField.typeName
 	var fieldTypeCapitalized = firstCapitalized(fieldType)
 
 	builder.WriteLineFI(1, `valueFor%sKey, exists := stringKeyValues["%s"]`, fieldNameCapitalized, fieldName)
@@ -321,57 +338,61 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 	builder.WriteLineFI(2, `return nil, j(e("value not found for key '%s'"))`, fieldName)
 	builder.WriteLineFI(1, "}")
 
-	var jsonObjectOfInterest = detectWhatJsonObjectShouldBeParsedForType(fieldType)
+	switch firstClassField.typeKind {
+	case FirstClassFieldTypeKindScalar:
+		switch firstClassField.typeParsingStrat {
+		case FirstClassFieldParsingStrategyInt64:
+			builder.WriteLineFI(1, `valueFor%sKeyAsNumberValue, err := valueFor%sKey.AsNumber()`, fieldNameCapitalized, fieldNameCapitalized)
+			builder.WriteLineFI(1, `if err != nil {`)
+			builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Number failed for key '%s'"), err)`, fieldName)
+			builder.WriteLineFI(1, `}`)
 
-	switch jsonObjectOfInterest {
-	case JsonObjectOfInterestInt64:
-		builder.WriteLineFI(1, `valueFor%sKeyAsNumberValue, err := valueFor%sKey.AsNumber()`, fieldNameCapitalized, fieldNameCapitalized)
-		builder.WriteLineFI(1, `if err != nil {`)
-		builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Number failed for key '%s'"), err)`, fieldName)
-		builder.WriteLineFI(1, `}`)
+			var resultingValueName = fmt.Sprintf(`parsedInt64For%sKey`, fieldNameCapitalized)
 
-		var resultingValueName = fmt.Sprintf(`parsedInt64For%sKey`, fieldNameCapitalized)
+			builder.WriteLineFI(1, `%s, err := valueFor%sKeyAsNumberValue.ParseInt64()`, resultingValueName, fieldNameCapitalized)
+			builder.WriteLineFI(1, `if err != nil {`)
+			builder.WriteLineFI(2, `return nil, j(e("parsing int64 from Number failed for key '%s'"), err)`, fieldName)
+			builder.WriteLineFI(1, `}`)
 
-		builder.WriteLineFI(1, `%s, err := valueFor%sKeyAsNumberValue.ParseInt64()`, resultingValueName, fieldNameCapitalized)
-		builder.WriteLineFI(1, `if err != nil {`)
-		builder.WriteLineFI(2, `return nil, j(e("parsing int64 from Number failed for key '%s'"), err)`, fieldName)
-		builder.WriteLineFI(1, `}`)
+			keysAndValues[fieldName] = InitializationValue{
+				valueName:          resultingValueName,
+				needsDereferencing: true,
+			}
+		case FirstClassFieldParsingStrategyString:
+			builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
+			builder.WriteLineFI(1, `if err != nil {`)
+			builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as String failed for key '%s'"), err)`, fieldName)
+			builder.WriteLineFI(1, `}`)
 
-		keysAndValues[fieldName] = InitializationValue{
-			valueName:          resultingValueName,
-			needsDereferencing: true,
+			var resultingValueName = fmt.Sprintf(`parsedStringFor%sKey`, fieldNameCapitalized)
+
+			builder.WriteLineFI(1, `%s := valueFor%sKeyAsStringValue.String`, resultingValueName, fieldNameCapitalized)
+
+			keysAndValues[fieldName] = InitializationValue{
+				valueName:          resultingValueName,
+				needsDereferencing: false,
+			}
+		case FirstClassFieldParsingStrategyArbitraryStruct:
+			builder.WriteLineFI(1, `valueFor%sKeyAsObjectValue, err := valueFor%sKey.AsObject()`, fieldNameCapitalized, fieldNameCapitalized)
+			builder.WriteLineFI(1, `if err != nil {`)
+			builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Object failed for key '%s'"), err)`, fieldName)
+			builder.WriteLineFI(1, `}`)
+			var resultingValueName = fmt.Sprintf("parsedValueFor%sKey", fieldNameCapitalized)
+			builder.WriteLineFI(1, `%s, err := parse%sFromJsonObject(valueFor%sKeyAsObjectValue)`, resultingValueName, fieldTypeCapitalized, fieldNameCapitalized)
+			builder.WriteLineFI(1, `if err != nil {`)
+			builder.WriteLineFI(2, `return nil, j(e("parsing '%s' from 'Object' failed for key '%s'"))`, fieldType, fieldName)
+			builder.WriteLineFI(1, `}`)
+
+			keysAndValues[fieldName] = InitializationValue{
+				valueName:          resultingValueName,
+				needsDereferencing: true,
+			}
+		default:
+			panic("not supposed to happen")
 		}
-	case JsonObjectOfInterestString:
-		builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
-		builder.WriteLineFI(1, `if err != nil {`)
-		builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as String failed for key '%s'"), err)`, fieldName)
-		builder.WriteLineFI(1, `}`)
-
-		var resultingValueName = fmt.Sprintf(`parsedStringFor%sKey`, fieldNameCapitalized)
-
-		builder.WriteLineFI(1, `%s := valueFor%sKeyAsStringValue.String`, resultingValueName, fieldNameCapitalized)
-
-		keysAndValues[fieldName] = InitializationValue{
-			valueName:          resultingValueName,
-			needsDereferencing: false,
-		}
-	case JsonObjectOfInterestAnotherType:
-		builder.WriteLineFI(1, `valueFor%sKeyAsObjectValue, err := valueFor%sKey.AsObject()`, fieldNameCapitalized, fieldNameCapitalized)
-		builder.WriteLineFI(1, `if err != nil {`)
-		builder.WriteLineFI(2, `return nil, j(e("interpreting JsonAny as Object failed for key '%s'"), err)`, fieldName)
-		builder.WriteLineFI(1, `}`)
-		var resultingValueName = fmt.Sprintf("parsedValueFor%sKey", fieldNameCapitalized)
-		builder.WriteLineFI(1, `%s, err := parse%sFromJsonObject(valueFor%sKeyAsObjectValue)`, resultingValueName, fieldTypeCapitalized, fieldNameCapitalized)
-		builder.WriteLineFI(1, `if err != nil {`)
-		builder.WriteLineFI(2, `return nil, j(e("parsing '%s' from 'Object' failed for key '%s'"))`, fieldType, fieldName)
-		builder.WriteLineFI(1, `}`)
-
-		keysAndValues[fieldName] = InitializationValue{
-			valueName:          resultingValueName,
-			needsDereferencing: true,
-		}
+	case FirstClassFieldTypeKindArray:
 	default:
-		panic("not supposed to happen")
+		panic("no")
 	}
 
 	builder.WriteLine()

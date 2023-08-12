@@ -8,8 +8,9 @@ type addMoneyRequest struct {
 
 	accessTokenHaving
 
-	amount  int64
-	message string
+	amount     int64
+	message    string
+	otherStuff []addMoneyRequest
 
 	moneySpent moneySpentRequest
 }

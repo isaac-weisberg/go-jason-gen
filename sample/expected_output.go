@@ -2,6 +2,7 @@ package sample
 
 import (
 	"errors"
+	"fmt"
 
 	gojason "github.com/isaac-weisberg/go-jason"
 	parser "github.com/isaac-weisberg/go-jason/parser"
@@ -56,6 +57,7 @@ func ExpectedParseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueOb
 func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
+	var s = fmt.Sprintf
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
 
@@ -86,7 +88,7 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 
 	accessTokenHaving, err := ExpectedParseAccessTokenHavingFromJsonObject(rootObject)
 	if err != nil {
-		return nil, j(e("parsing embedded struct of type accessTokenHaving failed"))
+		return nil, j(e("parsing embedded struct of type accessTokenHaving failed"), err)
 	}
 
 	// valueForMoneySpentKey, exists := stringKeyValues["moneySpent"]
@@ -102,6 +104,29 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 	// 	return nil, j(e("parsing 'moneySpentRequest' from 'Object' failed for key 'moneySpent'"))
 	// }
 
+	valueForOtherStuffKey, exists := stringKeyValues["otherStuff"]
+	if !exists {
+		return nil, j(e("value not found for key 'amount'"))
+	}
+	valueForOtherStuffKeyAsArrayValue, err := valueForOtherStuffKey.AsArray()
+	if err != nil {
+		return nil, j(e("interpreting JsonAny as String failed for key 'otherStuff'"))
+	}
+	resultingArrayForOtherStuffKey := make([]addMoneyRequest, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
+	for index, element := range valueForOtherStuffKeyAsArrayValue.Values {
+		elementAsObject, err := element.AsObject()
+		if err != nil {
+			return nil, j(e(s("attempted to interpret value at index '%v' of array for key 'otherStuff' as object, but failed", index)), err)
+		}
+
+		parsedValue, err := parseAddMoneyRequestFromJsonObject(elementAsObject)
+		if err != nil {
+			return nil, j(e(s("failed to parse element at index '%v' of array for key 'otherStuff'", index)), err)
+		}
+
+		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, *parsedValue)
+	}
+
 	var decodable = gojason.Decodable{}
 
 	var resultingStructAddMoneyRequest = addMoneyRequest{
@@ -109,6 +134,7 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 		amount:            *parsedInt64ForAmountKey,
 		accessTokenHaving: *accessTokenHaving,
 		message:           messageResultingValue,
+		otherStuff:        resultingArrayForOtherStuffKey,
 		// moneySpent:        *moneySpent,
 	}
 
