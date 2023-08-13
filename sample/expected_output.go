@@ -112,26 +112,24 @@ func ExpectedParseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObje
 	if err != nil {
 		return nil, j(e("interpreting JsonAny as String failed for key 'otherStuff'"))
 	}
-	resultingArrayForOtherStuffKey := make([]addMoneyRequest, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
+	resultingArrayForOtherStuffKey := make([]int64, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
 	for index, element := range valueForOtherStuffKeyAsArrayValue.Values {
-		elementAsObject, err := element.AsObject()
+		elementAsNumber, err := element.AsNumber()
 		if err != nil {
-			return nil, j(e(s("attempted to interpret value at index '%v' of array for key 'otherStuff' as object, but failed", index)), err)
+			return nil, j(e(s("attempted to interpret value at index '%v' of array for key 'otherStuff' as Number, but failed", index)), err)
 		}
-
-		parsedValue, err := parseAddMoneyRequestFromJsonObject(elementAsObject)
+		parsedInt64, err := elementAsNumber.ParseInt64()
 		if err != nil {
-			return nil, j(e(s("failed to parse element at index '%v' of array for key 'otherStuff'", index)), err)
+			return nil, j(e(s("parsing int64 from Number failed for element at index '%v' of array for key 'otherStuff'", index)), err)
 		}
-
-		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, *parsedValue)
+		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, parsedInt64)
 	}
 
 	var decodable = gojason.Decodable{}
 
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable:         decodable,
-		amount:            *parsedInt64ForAmountKey,
+		amount:            parsedInt64ForAmountKey,
 		accessTokenHaving: *accessTokenHaving,
 		message:           messageResultingValue,
 		otherStuff:        resultingArrayForOtherStuffKey,

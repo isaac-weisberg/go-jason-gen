@@ -376,7 +376,7 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 
 			keysAndValues[fieldName] = InitializationValue{
 				valueName:          resultingValueName,
-				needsDereferencing: true,
+				needsDereferencing: false,
 			}
 		case FirstClassFieldParsingStrategyString:
 			builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
@@ -422,15 +422,27 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 
 		switch firstClassField.typeParsingStrat {
 		case FirstClassFieldParsingStrategyInt64:
-
+			builder.WriteLineFI(2, "elementAsNumber, err := element.AsNumber()")
+			builder.WriteLineFI(2, `if err != nil {`)
+			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%%v' of array for key '%s' as Number, but failed", index)), err)`, fieldName)
+			builder.WriteLineFI(2, `}`)
+			builder.WriteLineFI(2, `parsedInt64, err := elementAsNumber.ParseInt64()`)
+			builder.WriteLineFI(2, `if err != nil {`)
+			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("parsing int64 from Number failed for element at index '%%v' of array for key '%s'", index)), err)`, fieldName)
+			builder.WriteLineFI(2, `}`)
+			builder.WriteLineFI(2, `resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, parsedInt64)`)
 		case FirstClassFieldParsingStrategyString:
-
+			builder.WriteLineFI(2, "elementAsString, err := element.AsString()")
+			builder.WriteLineFI(2, `if err != nil {`)
+			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%%v' of array for key '%s' as String, but failed", index)), err)`, fieldName)
+			builder.WriteLineFI(2, `}`)
+			builder.WriteLineFI(2, `parsedValue := elementAsString.String`)
+			builder.WriteLineFI(2, "resultingArrayFor%sKey = append(resultingArrayFor%sKey, parsedValue)", fieldNameCapitalized, fieldNameCapitalized)
 		case FirstClassFieldParsingStrategyArbitraryStruct:
 			builder.WriteLineFI(2, `elementAsObject, err := element.AsObject()`)
 			builder.WriteLineFI(2, `if err != nil {`)
 			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%%v' of array for key '%s' as object, but failed", index)), err)`, fieldName)
 			builder.WriteLineFI(2, `}`)
-
 			builder.WriteLineFI(2, `parsedValue, err := parse%sFromJsonObject(elementAsObject)`, fieldTypeCapitalized)
 			builder.WriteLineFI(2, `if err != nil {`)
 			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("failed to parse element at index '%%v' of array for key '%s'", index)), err)`, fieldName)

@@ -123,17 +123,17 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	if err != nil {
 		return nil, j(e("interpreting JsonAny as Array failed for key 'otherStuff'"))
 	}
-	resultingArrayForOtherStuffKey := make([]addMoneyRequest, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
+	resultingArrayForOtherStuffKey := make([]int64, 0, len(valueForOtherStuffKeyAsArrayValue.Values))
 	for index, element := range valueForOtherStuffKeyAsArrayValue.Values {
-		elementAsObject, err := element.AsObject()
+		elementAsNumber, err := element.AsNumber()
 		if err != nil {
-			return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%v' of array for key 'otherStuff' as object, but failed", index)), err)
+			return nil, j(e(fmt.Sprintf("attempted to interpret value at index '%v' of array for key 'otherStuff' as Number, but failed", index)), err)
 		}
-		parsedValue, err := parseAddMoneyRequestFromJsonObject(elementAsObject)
+		parsedInt64, err := elementAsNumber.ParseInt64()
 		if err != nil {
-			return nil, j(e(fmt.Sprintf("failed to parse element at index '%v' of array for key 'otherStuff'", index)), err)
+			return nil, j(e(fmt.Sprintf("parsing int64 from Number failed for element at index '%v' of array for key 'otherStuff'", index)), err)
 		}
-		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, *parsedValue)
+		resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, parsedInt64)
 	}
 
 	valueForMoneySpentKey, exists := stringKeyValues["moneySpent"]
@@ -152,11 +152,11 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
-		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
-		amount: *parsedInt64ForAmountKey,
+		amount: parsedInt64ForAmountKey,
 		message: parsedStringForMessageKey,
 		otherStuff: resultingArrayForOtherStuffKey,
 		moneySpent: *parsedValueForMoneySpentKey,
+		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 	}
 	return &resultingStructAddMoneyRequest, nil
 }
@@ -206,7 +206,7 @@ func parseMoneySpentRequestFromJsonObject(rootObject *values.JsonValueObject) (*
 	var decodable = gojason.Decodable{}
 	var resultingStructMoneySpentRequest = moneySpentRequest{
 		Decodable: decodable,
-		spendAmount: *parsedInt64ForSpendAmountKey,
+		spendAmount: parsedInt64ForSpendAmountKey,
 	}
 	return &resultingStructMoneySpentRequest, nil
 }

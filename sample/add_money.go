@@ -10,7 +10,7 @@ type addMoneyRequest struct {
 
 	amount     int64
 	message    string
-	otherStuff []addMoneyRequest
+	otherStuff []int64
 
 	moneySpent moneySpentRequest
 }
