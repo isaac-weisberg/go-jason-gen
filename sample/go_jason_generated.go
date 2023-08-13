@@ -11,9 +11,13 @@ import (
 	values "github.com/isaac-weisberg/go-jason/values"
 )
 
+// just in case, if variable is unused, we mention it as a param to this no-op func - and then, it's suddenly very well used :)
+func UNUSED(arg any) {}
+
 func makeAccessTokenHavingFromJson(bytes []byte) (*accessTokenHaving, error) {
 	var j = errors.Join
 	var e = errors.New
+	UNUSED(fmt.Sprintf)
 
 	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
@@ -38,7 +42,7 @@ func parseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueObject) (*
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
-	_ = stringKeyValues
+	UNUSED(stringKeyValues)
 
 	valueForAccessTokenKey, exists := stringKeyValues["accessToken"]
 	if !exists {
@@ -61,6 +65,7 @@ func parseAccessTokenHavingFromJsonObject(rootObject *values.JsonValueObject) (*
 func makeAddMoneyRequestFromJson(bytes []byte) (*addMoneyRequest, error) {
 	var j = errors.Join
 	var e = errors.New
+	UNUSED(fmt.Sprintf)
 
 	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
@@ -85,7 +90,7 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
-	_ = stringKeyValues
+	UNUSED(stringKeyValues)
 
 	valueForEmbeddedAccessTokenHaving, err := parseAccessTokenHavingFromJsonObject(rootObject)
 	if err != nil {
@@ -164,6 +169,7 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 func makeMoneySpentRequestFromJson(bytes []byte) (*moneySpentRequest, error) {
 	var j = errors.Join
 	var e = errors.New
+	UNUSED(fmt.Sprintf)
 
 	rootValueAny, err := parser.Parse(bytes)
 	if err != nil {
@@ -188,7 +194,7 @@ func parseMoneySpentRequestFromJsonObject(rootObject *values.JsonValueObject) (*
 	var e = errors.New
 
 	var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()
-	_ = stringKeyValues
+	UNUSED(stringKeyValues)
 
 	valueForSpendAmountKey, exists := stringKeyValues["spendAmount"]
 	if !exists {

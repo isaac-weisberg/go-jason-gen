@@ -269,6 +269,9 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineFI(1, `values "github.com/isaac-weisberg/go-jason/values"`)
 		builder.WriteLine(")")
 		builder.WriteLine()
+		builder.WriteLine("// just in case, if variable is unused, we mention it as a param to this no-op func - and then, it's suddenly very well used :)")
+		builder.WriteLine("func UNUSED(arg any) {}")
+		builder.WriteLine()
 	}
 
 	for _, declaration := range structDeclarations {
@@ -279,6 +282,8 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 
 		builder.WriteLineIndent(1, "var j = errors.Join")
 		builder.WriteLineIndent(1, "var e = errors.New")
+		builder.WriteLineIndent(1, "UNUSED(fmt.Sprintf)")
+
 		builder.WriteLine()
 		builder.WriteLineIndent(1, "rootValueAny, err := parser.Parse(bytes)")
 		builder.WriteLineIndent(1, "if err != nil {")
@@ -304,7 +309,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineIndent(1, "var e = errors.New")
 		builder.WriteLine()
 		builder.WriteLineIndent(1, "var stringKeyValues = rootObject.StringKeyedKeyValuesOnly()")
-		builder.WriteLineIndent(1, "_ = stringKeyValues")
+		builder.WriteLineIndent(1, "UNUSED(stringKeyValues)")
 		builder.WriteLine()
 
 		var keysAndValuesForThem = make(map[string]InitializationValue, 0)
@@ -346,8 +351,6 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 }
 
 func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, firstClassField FirstClassField) {
-	fmt.Printf("ASDF %+v\n", firstClassField)
-
 	var fieldName = firstClassField.fieldName
 	var fieldNameCapitalized = firstCapitalized(fieldName)
 	var fieldType = firstClassField.typeName
