@@ -433,7 +433,7 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			builder.WriteLineFI(2, `if err != nil {`)
 			builder.WriteLineFI(3, `return nil, j(e(fmt.Sprintf("parsing int64 from Number failed for element at index '%%v' of array for key '%s'", index)), err)`, fieldName)
 			builder.WriteLineFI(2, `}`)
-			builder.WriteLineFI(2, `resultingArrayForOtherStuffKey = append(resultingArrayForOtherStuffKey, parsedInt64)`)
+			builder.WriteLineFI(2, `resultingArrayFor%sKey = append(resultingArrayFor%sKey, parsedInt64)`, fieldNameCapitalized, fieldNameCapitalized)
 		case FirstClassFieldParsingStrategyString:
 			builder.WriteLineFI(2, "elementAsString, err := element.AsString()")
 			builder.WriteLineFI(2, `if err != nil {`)
