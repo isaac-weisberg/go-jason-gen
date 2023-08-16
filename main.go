@@ -247,6 +247,7 @@ func contains[T comparable](s []T, e T) bool {
 }
 
 type InitializationValue struct {
+	fieldName          string
 	valueName          string
 	needsDereferencing bool
 }
@@ -312,21 +313,23 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 		builder.WriteLineIndent(1, "UNUSED(stringKeyValues)")
 		builder.WriteLine()
 
-		var keysAndValuesForThem = make(map[string]InitializationValue, 0)
+		var keysAndValuesForThem = make([]InitializationValue, 0)
 
 		for _, field := range declaration.fields {
 			switch field.fieldType {
 			case FieldTypeFirstClass:
-				generateFirstClassFieldDeclaration(&builder, keysAndValuesForThem, field.firstClassField)
+				newInitializationValues := generateFirstClassFieldDeclaration(&builder, field.firstClassField)
+				keysAndValuesForThem = append(keysAndValuesForThem, newInitializationValues...)
 			case FieldTypeEmbeddedStruct:
-				generateEmbeddedStructFieldDeclaration(&builder, keysAndValuesForThem, field.embeddedStructField)
+				newInitializationValues := generateEmbeddedStructFieldDeclaration(&builder, field.embeddedStructField)
+				keysAndValuesForThem = append(keysAndValuesForThem, newInitializationValues...)
 			}
 		}
 
 		builder.WriteLineFI(1, `var decodable = gojason.Decodable{}`)
 		builder.WriteLineFI(1, `var resultingStruct%s = %s{`, structNameCapitalized, declaration.name)
 		builder.WriteLineFI(2, `Decodable: decodable,`)
-		for k, value := range keysAndValuesForThem {
+		for _, value := range keysAndValuesForThem {
 			var formatStringRepresentingUsageOfValue string
 			if value.needsDereferencing {
 				formatStringRepresentingUsageOfValue = "*%s"
@@ -334,7 +337,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 				formatStringRepresentingUsageOfValue = "%s"
 			}
 			var valueUsage = fmt.Sprintf(formatStringRepresentingUsageOfValue, value.valueName)
-			builder.WriteLineFI(2, `%s: %s,`, k, valueUsage)
+			builder.WriteLineFI(2, `%s: %s,`, value.fieldName, valueUsage)
 		}
 		builder.WriteLineFI(1, `}`)
 		builder.WriteLineFI(1, `return &resultingStruct%s, nil`, structNameCapitalized)
@@ -350,7 +353,7 @@ func generateStructDeclarations(packageName string, packageLocation string, stru
 	os.WriteFile(filePathToWrite, []byte(result), 0644)
 }
 
-func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, firstClassField FirstClassField) {
+func generateFirstClassFieldDeclaration(builder *customBuilder, firstClassField FirstClassField) []InitializationValue {
 	var fieldName = firstClassField.fieldName
 	var fieldNameCapitalized = firstCapitalized(fieldName)
 	var fieldType = firstClassField.typeName
@@ -376,10 +379,14 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			builder.WriteLineFI(1, `if err != nil {`)
 			builder.WriteLineFI(2, `return nil, j(e("parsing int64 from Number failed for key '%s'"), err)`, fieldName)
 			builder.WriteLineFI(1, `}`)
+			builder.WriteLine()
 
-			keysAndValues[fieldName] = InitializationValue{
-				valueName:          resultingValueName,
-				needsDereferencing: false,
+			return []InitializationValue{
+				InitializationValue{
+					fieldName:          fieldName,
+					valueName:          resultingValueName,
+					needsDereferencing: false,
+				},
 			}
 		case FirstClassFieldParsingStrategyString:
 			builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
@@ -390,10 +397,14 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			var resultingValueName = fmt.Sprintf(`parsedStringFor%sKey`, fieldNameCapitalized)
 
 			builder.WriteLineFI(1, `%s := valueFor%sKeyAsStringValue.String`, resultingValueName, fieldNameCapitalized)
+			builder.WriteLine()
 
-			keysAndValues[fieldName] = InitializationValue{
-				valueName:          resultingValueName,
-				needsDereferencing: false,
+			return []InitializationValue{
+				InitializationValue{
+					fieldName:          fieldName,
+					valueName:          resultingValueName,
+					needsDereferencing: false,
+				},
 			}
 		case FirstClassFieldParsingStrategyArbitraryStruct:
 			builder.WriteLineFI(1, `valueFor%sKeyAsObjectValue, err := valueFor%sKey.AsObject()`, fieldNameCapitalized, fieldNameCapitalized)
@@ -406,9 +417,14 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 			builder.WriteLineFI(2, `return nil, j(e("parsing '%s' from 'Object' failed for key '%s'"))`, fieldType, fieldName)
 			builder.WriteLineFI(1, `}`)
 
-			keysAndValues[fieldName] = InitializationValue{
-				valueName:          resultingValueName,
-				needsDereferencing: true,
+			builder.WriteLine()
+
+			return []InitializationValue{
+				InitializationValue{
+					fieldName:          fieldName,
+					valueName:          resultingValueName,
+					needsDereferencing: true,
+				},
 			}
 		default:
 			panic("not supposed to happen")
@@ -456,19 +472,21 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, keysAndValues ma
 		}
 
 		builder.WriteLineFI(1, `}`)
+		builder.WriteLine()
 
-		keysAndValues[fieldName] = InitializationValue{
-			valueName:          resultingValueName,
-			needsDereferencing: false,
+		return []InitializationValue{
+			InitializationValue{
+				fieldName:          fieldName,
+				valueName:          resultingValueName,
+				needsDereferencing: false,
+			},
 		}
 	default:
 		panic("no")
 	}
-
-	builder.WriteLine()
 }
 
-func generateEmbeddedStructFieldDeclaration(builder *customBuilder, keysAndValues map[string]InitializationValue, embeddedStructField EmbeddedStructField) {
+func generateEmbeddedStructFieldDeclaration(builder *customBuilder, embeddedStructField EmbeddedStructField) []InitializationValue {
 	var embeddedTypeName = embeddedStructField.embeddedTypeName
 	var capitalizedEmbeddedTypeName = firstCapitalized(embeddedTypeName)
 
@@ -478,11 +496,13 @@ func generateEmbeddedStructFieldDeclaration(builder *customBuilder, keysAndValue
 	builder.WriteLineFI(1, "if err != nil {")
 	builder.WriteLineFI(2, `return nil, j(e("parsing embedded struct of type '%s' failed"), err)`, embeddedTypeName)
 	builder.WriteLineFI(1, "}")
-
-	keysAndValues[embeddedTypeName] = InitializationValue{
-		valueName:          resultingValueName,
-		needsDereferencing: true,
-	}
-
 	builder.WriteLine()
+
+	return []InitializationValue{
+		InitializationValue{
+			fieldName:          embeddedTypeName,
+			valueName:          resultingValueName,
+			needsDereferencing: true,
+		},
+	}
 }

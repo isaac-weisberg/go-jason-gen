@@ -157,11 +157,11 @@ func parseAddMoneyRequestFromJsonObject(rootObject *values.JsonValueObject) (*ad
 	var decodable = gojason.Decodable{}
 	var resultingStructAddMoneyRequest = addMoneyRequest{
 		Decodable: decodable,
+		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 		amount: parsedInt64ForAmountKey,
 		message: parsedStringForMessageKey,
 		otherStuff: resultingArrayForOtherStuffKey,
 		moneySpent: *parsedValueForMoneySpentKey,
-		accessTokenHaving: *valueForEmbeddedAccessTokenHaving,
 	}
 	return &resultingStructAddMoneyRequest, nil
 }

@@ -1,4 +1,7 @@
-default: upd_local
+default: gen
+
+gen:
+	go run . ./sample
 
 upd_local:
 	go get -u github.com/isaac-weisberg/go-jason@v0.0.0-unpublished
