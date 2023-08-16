@@ -252,6 +252,14 @@ type InitializationValue struct {
 	needsDereferencing bool
 }
 
+func makeInitializationValue(fieldName string, valueName string, needsDereferencing bool) InitializationValue {
+	return InitializationValue{
+		fieldName:          fieldName,
+		valueName:          valueName,
+		needsDereferencing: needsDereferencing,
+	}
+}
+
 func generateStructDeclarations(packageName string, packageLocation string, structDeclarations []StructDeclaration) {
 	var builder customBuilder
 
@@ -382,11 +390,11 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, firstClassField 
 			builder.WriteLine()
 
 			return []InitializationValue{
-				InitializationValue{
-					fieldName:          fieldName,
-					valueName:          resultingValueName,
-					needsDereferencing: false,
-				},
+				makeInitializationValue(
+					fieldName,
+					resultingValueName,
+					false,
+				),
 			}
 		case FirstClassFieldParsingStrategyString:
 			builder.WriteLineFI(1, `valueFor%sKeyAsStringValue, err := valueFor%sKey.AsString()`, fieldNameCapitalized, fieldNameCapitalized)
@@ -400,11 +408,11 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, firstClassField 
 			builder.WriteLine()
 
 			return []InitializationValue{
-				InitializationValue{
-					fieldName:          fieldName,
-					valueName:          resultingValueName,
-					needsDereferencing: false,
-				},
+				makeInitializationValue(
+					fieldName,
+					resultingValueName,
+					false,
+				),
 			}
 		case FirstClassFieldParsingStrategyArbitraryStruct:
 			builder.WriteLineFI(1, `valueFor%sKeyAsObjectValue, err := valueFor%sKey.AsObject()`, fieldNameCapitalized, fieldNameCapitalized)
@@ -420,11 +428,11 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, firstClassField 
 			builder.WriteLine()
 
 			return []InitializationValue{
-				InitializationValue{
-					fieldName:          fieldName,
-					valueName:          resultingValueName,
-					needsDereferencing: true,
-				},
+				makeInitializationValue(
+					fieldName,
+					resultingValueName,
+					true,
+				),
 			}
 		default:
 			panic("not supposed to happen")
@@ -475,11 +483,11 @@ func generateFirstClassFieldDeclaration(builder *customBuilder, firstClassField 
 		builder.WriteLine()
 
 		return []InitializationValue{
-			InitializationValue{
-				fieldName:          fieldName,
-				valueName:          resultingValueName,
-				needsDereferencing: false,
-			},
+			makeInitializationValue(
+				fieldName,
+				resultingValueName,
+				false,
+			),
 		}
 	default:
 		panic("no")
@@ -499,10 +507,10 @@ func generateEmbeddedStructFieldDeclaration(builder *customBuilder, embeddedStru
 	builder.WriteLine()
 
 	return []InitializationValue{
-		InitializationValue{
-			fieldName:          embeddedTypeName,
-			valueName:          resultingValueName,
-			needsDereferencing: true,
-		},
+		makeInitializationValue(
+			embeddedTypeName,
+			resultingValueName,
+			true,
+		),
 	}
 }
